@@ -3,6 +3,7 @@ export PATH=$PATH:/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin:~
 
 # Common function S
 ##Default website home directory##
+MySQL_Data_Dir='/www/server/data'
 Default_Website_Dir='/www/wwwroot/default'
 
 Ubuntu_Modify_Source()

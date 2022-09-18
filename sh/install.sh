@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 export PATH=$PATH:/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin:~/bin
 
-# Common function S
-##Default website home directory##
-MySQL_Data_Dir='/www/server/data'
+Download_Mirror='https://soft.vpser.net'
 Default_Website_Dir='/www/wwwroot/default'
+cur_dir=$(pwd)
+Curl_Ver='curl-7.62.0'
 
 Ubuntu_Modify_Source()
 {
-    OldReleasesURL='http://mirrors.ustc.edu.cn/ubuntu/'
+    OldReleasesURL='https://mirrors.tuna.tsinghua.edu.cn/ubuntu/'
     CodeName=''
     if grep -Eqi "20.04" /etc/*-release || echo "${Ubuntu_Version}" | grep -Eqi '^20.04'; then
         CodeName='focal'
@@ -43,30 +43,10 @@ if [ $(id -u) != "0" ]; then
     exit 1
 fi
 
-echo "Check_WSL"
-if [[ "$(< /proc/sys/kernel/osrelease)" == *[Mm]icrosoft* ]]; then
-    echo "running on WSL"
-else
-    echo "no WSL"
-fi
-
-echo "Check_Openssl"
-if ! command -v openssl >/dev/null 2>&1; then
-    apt-get update -y
-    [[ $? -ne 0 ]] && apt-get update --allow-releaseinfo-change -y
-    apt-get install -y openssl
-fi
-openssl version
-
-echo "Setting timezone..."
-rm -rf /etc/localtime
-ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
-
 echo "Ubuntu_Modify_Source"
 Ubuntu_Modify_Source
 
-
-echo "Create www"
+echo "Create www  user"
 groupadd www
 useradd -s /sbin/nologin -g www www
 
@@ -79,56 +59,5 @@ chmod 777 /www/wwwlogs
 chown -R www:www ${Default_Website_Dir}
 
 
-echo "Install Docker? (y/n) "
-read allow_rewrite
-if [ "${allow_rewrite}" == "y" ]; then
-    echo "install docker..."
-    apt-get remove docker docker-engine docker.io containerd runc
 
-    apt-get install ca-certificates curl gnupg lsb-release
-
-    mkdir -p /etc/apt/keyrings
-    curl -fsSL https://mirrors.aliyun.com/docker-ce/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-
-    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://mirrors.aliyun.com/docker-ce/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-
-    apt-get update -y
-    apt-get install docker-ce docker-ce-cli containerd.io docker-compose-plugin
-
-    systemctl start docker
-    docker run hello-world
-
-    sudo mkdir -p /etc/docker
-sudo tee /etc/docker/daemon.json <<-'EOF'
-{
-  "registry-mirrors": ["https://9gqe7epy.mirror.aliyuncs.com"]
-}
-EOF
-sudo systemctl daemon-reload
-sudo systemctl restart docker
-    echo "Install Docker Compose"
-    curl -L https://get.daocloud.io/docker/compose/releases/download/v2.11.0/docker-compose-`uname -s`-`uname -m` > /usr/local/bin/docker-compose
-    chmod +x /usr/local/bin/docker-compose
-
-    echo "docker images..."
-fi
-
-
-echo "Install Complete!"
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+echo "Complete!"

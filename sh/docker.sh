@@ -17,7 +17,7 @@ echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.
 apt-get update -y
 apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
 
-service docker start
+systemctl start docker
 
 sudo mkdir -p /etc/docker
 
@@ -27,12 +27,16 @@ sudo tee /etc/docker/daemon.json <<-'EOF'
 }
 EOF
 
-sudo service docker restart
+sudo systemctl daemon-reload
+sudo systemctl restart docker
 
 echo "Install Docker Compose"
 curl -L https://get.daocloud.io/docker/compose/releases/download/v2.11.0/docker-compose-`uname -s`-`uname -m` > /usr/local/bin/docker-compose
 chmod +x /usr/local/bin/docker-compose
 
+
+# 设置开机自启
+systemctl enable docker
 
 docker-compose --version
 

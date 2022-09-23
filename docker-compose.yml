@@ -12,19 +12,16 @@ services:
       - "443:443"
     volumes:
       - ${SOURCE_DIR}:/www/:rw
-      - ${NGINX_VHOST_DIR}:/etc/nginx/conf.d/:rw
-      - ${NGINX_CONFD_DIR}:/etc/nginx/btconfig/:rw
+      - ${NGINX_CONFD_DIR}:/etc/nginx/conf.d/:rw
       - ${NGINX_CONF_FILE}:/etc/nginx/nginx.conf:ro
-      - ${NGINX_FASTCGI_PHP_CONF}:/etc/nginx/fastcgi.conf:ro
-      - ${NGINX_PATHINFO_PHP_CONF}:/etc/nginx/pathinfo.conf:ro
+      - ${NGINX_FASTCGI_PHP_CONF}:/etc/nginx/fastcgi-php.conf:ro
       - ${NGINX_FASTCGI_PARAMS}:/etc/nginx/fastcgi_params:ro
       - ${NGINX_LOG_DIR}:/var/log/nginx/:rw
     environment:
       TZ: "$TZ"
     restart: always
     networks:
-      default:
-        ipv4_address: 10.0.0.10
+      - default
 
   php:
     build:
@@ -55,5 +52,3 @@ networks:
     driver: bridge
     ipam:
       driver: default
-      config:
-        - subnet: 10.0.0.0/24

@@ -1,20 +1,32 @@
-ARG NGINX_VERSION
-FROM ${NGINX_VERSION}
+FROM nginx:alpine
 
-ARG TZ
-ARG NGINX_VERSION
-ARG CONTAINER_PACKAGE_URL
-ARG NGINX_INSTALL_APPS
+COPY nginx.conf /etc/nginx/
 
-ENV INSTALL_APPS=",${NGINX_INSTALL_APPS},"
+RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.ustc.edu.cn/' /etc/apk/repositories
 
-RUN if [ "${CONTAINER_PACKAGE_URL}" != "" ]; then \
-        sed -i "s/dl-cdn.alpinelinux.org/${CONTAINER_PACKAGE_URL}/g" /etc/apk/repositories; \
-    fi
+RUN apk update \
+    && apk upgrade \
+    && apk --update add logrotate \
+    && apk add --no-cache openssl \
+    && apk add --no-cache bash
 
-RUN if [ -z "${INSTALL_APPS##*,certbot,*}" ]; then \
-        echo "---------- Install certbot ----------"; \
-        apk add --no-cache certbot; \
-    fi
+RUN apk add --no-cache curl
 
-WORKDIR /www
+RUN set -x ; \
+    addgroup -g 82 -S www-data ; \
+    adduser -u 82 -D -S -G www-data www-data && exit 0 ; exit 1
+
+RUN touch /var/log/messages
+
+# Copy 'logrotate' config file
+COPY logrotate/nginx /etc/logrotate.d/
+
+# Set upstream conf and remove the default conf
+RUN echo "upstream php-upstream { server php:9000; }" > /etc/nginx/conf.d/upstream.conf \
+    && rm /etc/nginx/conf.d/default.conf
+
+ADD ./startup.sh /opt/startup.sh
+RUN sed -i 's/\r//g' /opt/startup.sh
+CMD ["/bin/bash", "/opt/startup.sh"]
+
+EXPOSE 80 81 443

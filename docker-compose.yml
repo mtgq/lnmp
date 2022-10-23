@@ -1,54 +1,87 @@
-version: "3"
+version: '3.8'
+
+networks:
+  frontend:
+    driver: bridge
+  backend:
+    driver: bridge
+
 services:
+
+### NGINX Server #########################################
   nginx:
     build:
       context: ./services/nginx
-      args:
-        NGINX_VERSION: nginx:${NGINX_VERSION}
-        CONTAINER_PACKAGE_URL: ${CONTAINER_PACKAGE_URL}
     container_name: nginx
     ports:
       - "80:80"
+      - "81:81"
       - "443:443"
     volumes:
-      - ${SOURCE_DIR}:/www/:rw
-      - ${NGINX_CONFD_DIR}:/etc/nginx/conf.d/:rw
-      - ${NGINX_CONF_FILE}:/etc/nginx/nginx.conf:ro
-      - ${NGINX_FASTCGI_PHP_CONF}:/etc/nginx/fastcgi-php.conf:ro
-      - ${NGINX_FASTCGI_PARAMS}:/etc/nginx/fastcgi_params:ro
-      - ${NGINX_LOG_DIR}:/var/log/nginx/:rw
-    environment:
-      TZ: "$TZ"
-    restart: always
+      - ./www:/var/www:rw
+      - ./logs/nginx:/var/log/nginx:rw
+      - ./services/nginx/sites/:/etc/nginx/sites-available:rw
+    depends_on:
+        - php
     networks:
-      - default
-
+      - frontend
+      - backend
+### PHP-FPM ##############################################
   php:
     build:
       context: ./services/php
       args:
-        PHP_VERSION: php:${PHP_VERSION}-fpm-alpine
-        CONTAINER_PACKAGE_URL: ${CONTAINER_PACKAGE_URL}
-        TZ: "$TZ"
+        - LARADOCK_PHP_VERSION=${PHP_VERSION}
     container_name: php
     expose:
-      - 9501
-    extra_hosts:
-      - "www.site1.com:172.17.0.1"
+      - "9000"
     volumes:
-      - ${SOURCE_DIR}:/www/:rw
-      - ${PHP_PHP_CONF_FILE}:/usr/local/etc/php/php.ini:ro
-      - ${PHP_FPM_CONF_FILE}:/usr/local/etc/php-fpm.d/www.conf:rw
-      - ${PHP_LOG_DIR}:/var/log/php
-      - ${DATA_DIR}/composer:/tmp/composer
-    restart: always
+      - ./services/php/php${PHP_VERSION}.ini:/usr/local/etc/php/php.ini:ro
+      - ./www:/var/www:rw
+      - ./logs/php:/var/log/php
+      - ./data/composer:/tmp/composer
+    ports:
+      - "9003:9003"
     cap_add:
       - SYS_PTRACE
     networks:
-      - default
-
-networks:
-  default:
-    driver: bridge
-    ipam:
-      driver: default
+      - backend
+### MySQL ################################################
+  mysql:
+    build:
+      context: ./services/mysql
+      args:
+        - MYSQL_VERSION=${MYSQL_VERSION}
+    container_name: mysql
+    environment:
+      - MYSQL_ROOT_HOST=${MYSQL_ROOT_HOST}
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+      - TZ=${WORKSPACE_TIMEZONE}
+    volumes:
+      - ./data/mysql:/var/lib/mysql:rw
+      - ./logs/mysql:/var/log/mysql/:rw
+      - ./services/mysql/docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d
+    ports:
+      - "3306:3306"
+    networks:
+      - backend
+### phpMyAdmin ###########################################
+  phpmyadmin:
+    build: ./services/phpmyadmin
+    container_name: phpmyadmin
+    volumes:
+      - ./services/phpmyadmin/config.user.inc.php:/etc/phpmyadmin/config.user.inc.php:ro
+      - ./services/phpmyadmin/php-phpmyadmin.ini:/usr/local/etc/php/conf.d/php-phpmyadmin.ini:ro
+    environment:
+      - PMA_ARBITRARY=1
+      - MYSQL_USER=${PMA_USER}
+      - MYSQL_PASSWORD=${PMA_PASSWORD}
+      - MYSQL_ROOT_PASSWORD=${PMA_ROOT_PASSWORD}
+      - TZ=$TZ
+    ports:
+      - "8081:80"
+    depends_on:
+      - mysql
+    networks:
+      - frontend
+      - backend
